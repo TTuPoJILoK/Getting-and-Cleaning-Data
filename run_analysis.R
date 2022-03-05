@@ -1,0 +1,48 @@
+library(dplyr)
+
+
+if (!file.exists("data")){
+        dir.create("data")
+}
+
+fileURL <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+download.file(fileURL, destfile = "./data/dataset.zip")
+unzip("./data/dataset.zip")
+
+features <- read.table("./UCI HAR Dataset/features.txt", col.names = c("number", "feature"))
+activity_labels <- read.table("./UCI HAR Dataset/activity_labels.txt",col.names = c("number", "activity"))
+xTest <- read.table("./UCI HAR Dataset/test/X_test.txt", col.names = features$feature)
+yTest <- read.table("./UCI HAR Dataset/test/y_test.txt",col.names = "activity_number")
+xTrain <- read.table("./UCI HAR Dataset/train/X_train.txt", col.names = features$feature)
+yTrain <- read.table("./UCI HAR Dataset/train/y_train.txt", col.names = "activity_number")
+subjectTest <- read.table("./UCI HAR Dataset/test/subject_test.txt", col.names = "subject")
+subjectTrain <- read.table("./UCI HAR Dataset/train/subject_train.txt", col.names = "subject")
+
+X <- rbind(xTest, xTrain)
+Y <- rbind(yTest, yTrain)
+subject <- rbind(subjectTest, subjectTrain)
+mergeData <- cbind(subject, X, Y)
+
+vector_mean <- grep("mean", names(mergeData))
+vector_std <- grep("std", names(mergeData))
+vector_all <- c(1, 563, vector_mean, vector_std)
+newData <- mergeData[,vector_all]
+
+newData$activity_number <- activity_labels[newData$activity_number, 2]
+
+names(newData)[2] = "activity"
+names(newData)<-gsub("Acc", "Accelerometer", names(newData))
+names(newData)<-gsub("Gyro", "Gyroscope", names(newData))
+names(newData)<-gsub("BodyBody", "Body", names(newData))
+names(newData)<-gsub("Mag", "Magnitude", names(newData))
+names(newData)<-gsub("^t", "Time", names(newData))
+names(newData)<-gsub("^f", "Frequency", names(newData))
+names(newData)<-gsub("tBody", "TimeBody", names(newData))
+names(newData)<-gsub("-mean()", "Mean", names(newData), ignore.case = TRUE)
+names(newData)<-gsub("-std()", "STD", names(newData), ignore.case = TRUE)
+names(newData)<-gsub("-freq()", "Frequency", names(newData), ignore.case = TRUE)
+
+tidyData <- newData %>%
+        group_by(subject, activity) %>%
+        summarise_all(funs(mean))
+write.table(tidyData, "tidyData.txt", row.name=FALSE)
